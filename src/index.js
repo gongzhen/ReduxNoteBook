@@ -12,7 +12,6 @@ const CREATE_NOTE = "CREATE_NOTE";
 const UPDATE_NOTE = "UPDATE_NOTE";
 
 
-
 const reducer = (state = initialState, action) => {
 	switch(action.type) {
 		case CREATE_NOTE: {
@@ -49,27 +48,14 @@ const reducer = (state = initialState, action) => {
 	}
 };
 
+const actions = [
+	{type: CREATE_NOTE}, 
+	{type:UPDATE_NOTE, id: 1, content:'Hello, world'}
+];
 
-const handlers = {
-	[CREATE_NOTE]:(state, action) => {
-		return;
-	},
-	[UPDATE_NOTE]:(state, action) => {
-		return;
-	}
-};
-
-const state0 = reducer(undefined, {
-	type: CREATE_NOTE
-});
-
-const state1 = reducer(state0, {
-	type:UPDATE_NOTE,
-	id:1,
-	content:'Hello World'
-});
+const state = actions.reduce(reducer, undefined);
 
 ReactDOM.render(
-	<pre>{JSON.stringify(state0, null, 2)}{JSON.stringify(state1, null, 2)}</pre>,
+	<pre>{JSON.stringify(state, null, 2)}</pre>,
 	document.getElementById('root')
 );
