@@ -2,6 +2,67 @@ import React from 'react'
 import ReactDOM from 'react-dom'
 import PropTypes from 'prop-types'
 
+///////////////////////////////
+// Mini Redux implementation //
+///////////////////////////////
+
+const validateAction = action =>  {
+	if(!action || typeof action !== 'object' || Array.isArray(action)){
+		throw new Error('Action must be an object');
+	}
+	if(typeof action.type == 'undefined') {
+		throw new Error('Action must have a type!');
+	}
+};
+
+const createStore = (reducer, middleware) => {
+	let state;
+	const subscribers = [];
+	const coreDispatch = action => {
+		validateAction(action);
+		state = reducer(state, action);
+		subscribers.forEach(handler => handler());
+	};
+	const getState = () => state;
+	const store = {
+		dispatch:coreDispatch,
+		getState,
+		subscribe:handler => {
+			subscribers.push(handler);
+			return () => {
+				const index = subscribers.indexOf(handler);
+				if(index > 0) {
+					subscribers.splice(index, 1);
+				}
+			};
+		}
+	};
+	if(middleware) {
+		const dispatch = action => store.dispatch(action);
+		store.dispatch = middleware({
+			dispatch,
+			getState
+		})(coreDispatch);
+	}
+	coreDispatch({type: '@@redux/INIT'});
+	return store;
+};
+
+const delayMiddleWare = () => next => action => {
+	setTimeout(()=>{
+		next(action);
+	}, 1000);
+};
+
+//////////////////////
+// Our action types //
+//////////////////////
+
+const CREATE_NOTE = "CREATE_NOTE";
+const UPDATE_NOTE = "UPDATE_NOTE";
+const OPEN_NOTE = 'OPEN_NOTE';
+const CLOSE_NOTE = 'CLOSE_NOTE';
+
 /////////////////////////////////////
 // Mini React Redux implementation //
 /////////////////////////////////////
@@ -24,8 +85,11 @@ Provider.childContextTypes = {
 
 const connect = (
 	mapStateToProps = () => ({}),
-	mapDispatchToProps = () => ({})) => Component => {
+	mapDispatchToProps = () => ({})
+	) => Component => {
+	
 	class Connected extends React.Component {
+		
 		onStoreOrPropsChange(props) {
 			const {store} = this.context;
 			const state = store.getState();
@@ -76,10 +140,12 @@ const NoteEditor = ({note, onChangeNote, onCloseNote}) => (
 			className = "editor-content" 
 			autoFocus 
 			value={note.content} 
-			onChange = {event => onChangeNote(note.id, event.target.value)}
+			onChange = {event => 
+				onChangeNote(note.id, event.target.value)
+			}
 			/>
 		</div>
-		<button className="editor-button" onClick={onCloseNote}>
+		<button className="editor-button" onClick={ onCloseNote }>
 			Close
 		</button>
 	</div>
@@ -129,7 +195,7 @@ const NoteApp = ({
 		<div>
 			<NoteList notes = {notes} onOpenNote = {onOpenNote} />
 			{
-				<button className = "editor-button" onClick={onAddNote} >New Note </button>					
+				<button className = "editor-button" onClick={onAddNote}>New Note</button>					
 			}
 		</div>
 	}
@@ -166,54 +232,6 @@ const NoteAppContainer = connect(
 	mapStateToProps,
 	mapDispatchToProps
 )(NoteApp);
-
-
-///////////////////////////////
-// Mini Redux implementation //
-///////////////////////////////
-
-const validateAction = action =>  {
-	if(!action || typeof action !== 'object' || Array.isArray(action)){
-		throw new Error('Action must be an object');
-	}
-	if(typeof action.type == 'undefined') {
-		throw new Error('Action must have a type!');
-	}
-};
-
-const createStore = reducer => {
-	let state;
-	const subscribers = [];
-	const store = {
-		///dispatch({type:CREATE_NOTE})
-		dispatch: action => {
-			validateAction(action);
-			state = reducer(state, action);
-			subscribers.forEach(handler => handler());
-		},
-		getState: () => state,
-		subscribe:handler => {
-			subscribers.push(handler);
-			return () => {
-				const index = subscribers.indexOf(handler);
-				if(index > 0) {
-					subscribers.splice(index, 1);
-				}
-			};
-		}
-	};
-	store.dispatch({type: '@@redux/INIT'});
-	return store;
-};
-
-//////////////////////
-// Our action types //
-//////////////////////
-
-const OPEN_NOTE = 'OPEN_NOTE';
-const CLOSE_NOTE = 'CLOSE_NOTE';
-const CREATE_NOTE = "CREATE_NOTE";
-const UPDATE_NOTE = "UPDATE_NOTE";
 
 /////////////////
 // Our reducer //
