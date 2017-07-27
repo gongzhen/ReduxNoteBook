@@ -1,5 +1,69 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
+import PropTypes from 'prop-types'
+
+/////////////////////////////////////
+// Mini React Redux implementation //
+/////////////////////////////////////
+
+class Provider extends React.Component {
+	getChildContext() {
+		return {
+			store: this.props.store
+		};
+	}
+
+	render() {
+		return this.props.children;
+	}
+}
+
+Provider.childContextTypes = {
+	store: PropTypes.object
+};
+
+const connect = (
+	mapStateToProps = () => ({}),
+	mapDispatchToProps = () => ({})) => Component => {
+	class Connected extends React.Component {
+		onStoreOrPropsChange(props) {
+			const {store} = this.context;
+			const state = store.getState();
+			const stateProps = mapStateToProps(state, props);
+			const dispatchProps = mapDispatchToProps(store.dispatch, props);
+			this.setState({
+				...stateProps,
+				...dispatchProps
+			});
+		}
+		
+		componentWillMount() {
+			const {store} = this.context;
+			this.onStoreOrPropsChange(this.props);
+			this.unsubscribe = store.subscribe(() =>
+			this.onStoreOrPropsChange(this.props)
+			);
+		}
+
+		componentWillReceiveProps(nextProps) {
+			this.onStoreOrPropsChange(nextProps);
+		}
+
+		componentWillUnmount() {
+			this.unsubscribe();
+		}
+
+		render() {
+			return <Component {...this.props} {...this.state}/>;
+		}
+	}
+
+	Connected.contextTypes = {
+		store: PropTypes.object
+	};
+
+	return Connected;
+};
 
 ///////////////////////////////
 ///////  Components ///////////
@@ -72,63 +136,37 @@ const NoteApp = ({
 	</div>
 );
 
-class NoteAppContainer extends React.Component {
-	constructor(props) {
-		super();
-		this.state = props.store.getState();
-		this.onAddNote = this.onAddNote.bind(this);
-		this.onChangeNote = this.onChangeNote.bind(this);
-		this.onOpenNote = this.onOpenNote.bind(this);
-		this.onCloseNote = this.onCloseNote.bind(this);
-	}
+const mapStateToProps = state => ({
+	notes: state.notes,
+	openNoteId: state.openNoteId
+});
 
-	componentWillMount() {
-		this.unsubscribe = this.props.store.subscribe(() => this.setState(this.props.store.getState()));		
-	}
+const mapDispatchToProps = dispatch => ({
+	onAddNote: () => dispatch({
+		type: CREATE_NOTE
+	}),
 
-	componentWillUnmount() {	
-		this.unsubscribe();
-	}
+	onChangeNote: (id, content) => dispatch({
+		type: UPDATE_NOTE,
+		id,
+		content
+	}),
 
-	onAddNote() {
-		this.props.store.dispatch({
-			type:CREATE_NOTE
-		});
-	}
+	onOpenNote: id => dispatch({
+		type: OPEN_NOTE,
+		id
+	}),
 
-	onChangeNote(id, content) {
-		this.props.store.dispatch({
-			type:UPDATE_NOTE,
-			id,
-			content
-		});
-	}
+	onCloseNote: () => dispatch({
+		type: CLOSE_NOTE
+	})
+});
 
-	onOpenNote(id) {
-		this.props.store.dispatch({
-			type:OPEN_NOTE,
-			id
-		});
-	}
+const NoteAppContainer = connect(
+	mapStateToProps,
+	mapDispatchToProps
+)(NoteApp);
 
-	onCloseNote() {
-		this.props.store.dispatch({
-			type: CLOSE_NOTE
-		});
-	}
-
-	render(){
-		return(
-			<NoteApp 
-				{...this.state}
-				onAddNote = {this.onAddNote}
-				onChangeNote = {this.onChangeNote}
-				onOpenNote = {this.onOpenNote}
-				onCloseNote = {this.onCloseNote}
-			/>
-		);
-	}
-}
 
 ///////////////////////////////
 // Mini Redux implementation //
@@ -247,7 +285,9 @@ const store = createStore(reducer);
 ///////////////////////////////////////////////
 
 ReactDOM.render(
-	<NoteAppContainer store={store}/>,
+	<Provider store={store}>
+		<NoteAppContainer />
+	</Provider>,
 	document.getElementById('root')
 );
 
