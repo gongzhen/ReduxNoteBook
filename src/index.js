@@ -1,16 +1,59 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
 
-const initialState = {
-	nextNoteId: 1,
-	notes:{}
+///////////////////////////////
+// Mini Redux implementation //
+///////////////////////////////
+
+const validateAction = action =>  {
+	if(!action || typeof action !== 'object' || Array.isArray(action)){
+		throw new Error('Action must be an object');
+	}
+	if(typeof action.type == 'undefined') {
+		throw new Error('Action must have a type!');
+	}
 };
 
-window.state = initialState;
+const createStore = reducer => {
+	let state;
+	const subscribers = [];
+	const store = {
+		///dispatch({type:CREATE_NOTE})
+		dispatch: action => {
+			validateAction(action);
+			state = reducer(state, action);
+			subscribers.forEach(handler => handler());
+		},
+		getState:() => state,
+		subscribe:handler => {
+			subscribers.push(handler);
+			return () => {
+				const index = subscribers.indexOf(handler);
+				if(index > 0) {
+					subscribers.splice(index, 1);
+				}
+			};
+		}
+	};
+	store.dispatch({type: '@@redux/INIT'});
+	return store;
+};
+
+//////////////////////
+// Our action types //
+//////////////////////
 
 const CREATE_NOTE = "CREATE_NOTE";
 const UPDATE_NOTE = "UPDATE_NOTE";
 
+/////////////////
+// Our reducer //
+/////////////////
+
+const initialState = {
+	nextNoteId: 1,
+	notes:{}
+};
 
 const reducer = (state = initialState, action) => {
 	switch(action.type) {
@@ -18,7 +61,7 @@ const reducer = (state = initialState, action) => {
 			const id = state.nextNoteId;
 			const newNote = {
 				id,
-				content:""
+				content:''
 			};
 			return {
 				...state,
@@ -48,14 +91,32 @@ const reducer = (state = initialState, action) => {
 	}
 };
 
-const actions = [
-	{type: CREATE_NOTE}, 
-	{type:UPDATE_NOTE, id: 1, content:'Hello, world'}
-];
+/////////////////
+// Our store //
+/////////////////
 
-const state = actions.reduce(reducer, undefined);
+const store = createStore(reducer);
 
-ReactDOM.render(
-	<pre>{JSON.stringify(state, null, 2)}</pre>,
+///////////////////////////////////////////////
+// Render our app whenever the store changes //
+///////////////////////////////////////////////
+
+store.subscribe(() => {
+	ReactDOM.render(
+	<pre>{JSON.stringify(store.getState(), null, 2)}</pre>,
 	document.getElementById('root')
-);
+	);
+});
+
+//////////////////////
+// Dispatch actions //
+//////////////////////
+
+store.dispatch({type:CREATE_NOTE});
+
+store.getState();
+
+store.dispatch({type:UPDATE_NOTE});
+
+
+

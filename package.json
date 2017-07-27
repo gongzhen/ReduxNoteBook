@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "nodemon --exec babel-node server.js --ignore public/",
-    "dev": "webpack -wd",    
+    "dev": "webpack -wd",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
