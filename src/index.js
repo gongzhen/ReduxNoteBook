@@ -49,9 +49,40 @@ const createStore = (reducer, middleware) => {
 };
 
 const delayMiddleWare = () => next => action => {
-	setTimeout(()=>{
+	setTimeout(() => {
 		next(action);
 	}, 1000);
+};
+
+const loggingMiddleware = ({getState}) => next => action => {
+	console.info('before', getState());
+	console.info('action', action);
+	const result = next(action);
+	console.info('after', getState());
+	return result;
+}
+
+const applyMiddleware = (...middlewares) => store => {
+	if(middlewares.length === 0) {
+		return dispatch => dispatch;
+	}
+	if(middlewares.length === 1) {
+		return middlewares[0];
+	}
+	const boundMiddlewares = middlewares.map(middleware => 
+		middleware(store)
+	);
+
+	return boundMiddlewares.reduce((a, b) => 
+		next => a(b(next))
+	);
+}
+
+const thunkMiddleware = ({dispatch, getState}) => next => action => {
+	if (typeof action === 'function') {
+		return action({dispatch, getState});
+	}
+	return next(action);
 };
 
 //////////////////////
@@ -105,7 +136,7 @@ const connect = (
 			const {store} = this.context;
 			this.onStoreOrPropsChange(this.props);
 			this.unsubscribe = store.subscribe(() =>
-			this.onStoreOrPropsChange(this.props)
+				this.onStoreOrPropsChange(this.props)
 			);
 		}
 
@@ -143,7 +174,7 @@ const NoteEditor = ({note, onChangeNote, onCloseNote}) => (
 			onChange = {event => 
 				onChangeNote(note.id, event.target.value)
 			}
-			/>
+		/>
 		</div>
 		<button className="editor-button" onClick={ onCloseNote }>
 			Close
@@ -296,7 +327,17 @@ const reducer = (state = initialState, action) => {
 // Our store //
 /////////////////
 
-const store = createStore(reducer);
+// const store = createStore(reducer, delayMiddleWare);
+
+// const store = createStore(reducer, applyMiddleware(
+// 	delayMiddleWare, 
+// 	loggingMiddleware
+// ));
+
+const store = createStore(reducer, applyMiddleware(
+	thunkMiddleware,
+	loggingMiddleware
+));
 
 ///////////////////////////////////////////////
 // Render our app whenever the store changes //
